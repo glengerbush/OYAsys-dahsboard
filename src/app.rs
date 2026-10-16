@@ -564,6 +564,8 @@ fn collect_loop(shared: Arc<Shared>, rx: mpsc::Receiver<Command>, inputs: Collec
         } else {
             Instant::now() >= next
         };
+        let mut collected = None;
+        let mut storage = None;
         if due {
             sequence = sequence.saturating_add(1);
             let values = telemetry
@@ -620,7 +622,7 @@ fn collect_loop(shared: Arc<Shared>, rx: mpsc::Receiver<Command>, inputs: Collec
                     }
                 }
             }
-            shared.live.lock().unwrap().snapshot = Some(snapshot);
+            collected = Some(snapshot);
             next = Instant::now() + Duration::from_secs(settings.sampling_seconds);
             last_fixture_time = now;
         }
@@ -631,12 +633,25 @@ fn collect_loop(shared: Arc<Shared>, rx: mpsc::Receiver<Command>, inputs: Collec
                     .status(cut)
                     .and_then(|_| w.cleanup(cut))
                     .and_then(|_| w.status(cut));
-                shared.live.lock().unwrap().storage = match result {
+                storage = Some(match result {
                     Ok(status) => status,
                     Err(error) => storage_error(error),
-                };
+                });
             }
             next_maintenance = Instant::now() + Duration::from_secs(30);
+        }
+        // Publish the completed collection and maintenance result together.
+        // Otherwise recovery can expose a persisted sample with the previous
+        // storage error while checkpoint I/O is still in progress. Keep that
+        // I/O outside the lock so HTTP can continue serving the previous state.
+        if collected.is_some() || storage.is_some() {
+            let mut live = shared.live.lock().unwrap();
+            if let Some(snapshot) = collected {
+                live.snapshot = Some(snapshot);
+            }
+            if let Some(status) = storage {
+                live.storage = status;
+            }
         }
     }
     if let Some(w) = writer {

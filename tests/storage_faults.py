@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""External storage fault tests; Linux/Python stdlib only (~35 seconds).
+"""External storage fault tests; Linux/Python stdlib and a C compiler (~35 seconds).
 
 Build first, then: python3 tests/storage_faults.py --binary target/debug/oyasys
 All application assertions use its real HTTP interface. SQLite is used only to
@@ -29,6 +29,39 @@ NOW = 2_000_000_000_000
 BINARY = Path("target/debug/oyasys").resolve()
 
 
+SLOW_CHECKPOINT = r"""
+#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+/* Delay database header writes, without changing SQLite's result. WAL appends
+   remain unaffected, exposing publication races during the following checkpoint. */
+ssize_t pwrite64(int fd, const void *buffer, size_t count, off64_t offset) {
+    ssize_t (*real_write)(int, const void *, size_t, off64_t) = dlsym(RTLD_NEXT, "pwrite64");
+    const char *armed = getenv("OYASYS_TEST_SLOW_CHECKPOINT");
+    if (offset == 0 && armed && access(armed, F_OK) == 0) {
+        char descriptor[64], path[4096];
+        snprintf(descriptor, sizeof(descriptor), "/proc/self/fd/%d", fd);
+        ssize_t length = readlink(descriptor, path, sizeof(path) - 1);
+        if (length >= 0) {
+            path[length] = '\0';
+            const char *suffix = "/history.sqlite3";
+            size_t size = strlen(suffix);
+            if ((size_t)length >= size && !strcmp(path + length - size, suffix)) {
+                FILE *marker = fopen(armed, "w");
+                if (marker) { fputs("delayed", marker); fclose(marker); }
+                usleep(300000);
+            }
+        }
+    }
+    return real_write(fd, buffer, count, offset);
+}
+"""
+
+
 def ignore_file_limit_signal():
     # An ignored disposition survives exec: SQLite receives EFBIG instead of
     # SIGXFSZ terminating the server, so its actual error handling is exercised.
@@ -36,13 +69,14 @@ def ignore_file_limit_signal():
 
 
 class Server:
-    def __init__(self, directory, wide=False):
+    def __init__(self, directory, wide=False, environment=None):
         self.directory = Path(directory)
         self.clock = self.directory / "clock"
         self.fixture = self.directory / "fixture.json"
         self.data = self.directory / "data"
         self.child = None
         self.stderr = None
+        self.environment = environment
         if not self.fixture.exists():
             metrics = [
                 {"id": "gpu.fixture.temperature", "label": "Synthetic P100 temperature",
@@ -83,6 +117,7 @@ class Server:
              "--fixture", str(self.fixture), "--fixture-clock", str(self.clock)],
             stdout=subprocess.DEVNULL, stderr=self.stderr,
             preexec_fn=ignore_file_limit_signal,
+            env=self.environment,
         )
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
@@ -210,7 +245,16 @@ class StorageFaults(unittest.TestCase):
 
     @unittest.skipUnless(hasattr(resource, "prlimit"), "Linux prlimit required")
     def test_real_write_failure_keeps_live_data_rolls_back_and_recovers(self):
-        self.server = server = Server(self.temporary.name, wide=True)
+        temporary = Path(self.temporary.name)
+        source = temporary / "slow-checkpoint.c"
+        library = temporary / "slow-checkpoint.so"
+        armed = temporary / "slow-checkpoint.armed"
+        source.write_text(SLOW_CHECKPOINT)
+        subprocess.run(["cc", "-shared", "-fPIC", "-O2", str(source), "-ldl", "-o", str(library)],
+                       check=True)
+        environment = os.environ | {"LD_PRELOAD": str(library),
+                                    "OYASYS_TEST_SLOW_CHECKPOINT": str(armed)}
+        self.server = server = Server(self.temporary.name, wide=True, environment=environment)
         server.start()
         status, saved = server.settings(sampling_seconds=1, retention_days=14)
         self.assertEqual(status, 200, saved)
@@ -244,6 +288,9 @@ class StorageFaults(unittest.TestCase):
         finally:
             resource.prlimit(server.child.pid, resource.RLIMIT_FSIZE, old_limit)
 
+        # Make slow checkpoint I/O deterministic on fast developer machines too.
+        # Only this child is affected; all storage operations remain real.
+        armed.touch()
         # Real backoff uses monotonic time. Keep collecting while the collector
         # retries; require recovery without restarting or fabricating old rows.
         deadline = time.monotonic() + 38
@@ -255,10 +302,11 @@ class StorageFaults(unittest.TestCase):
             if recovered["snapshot"]["persisted"]:
                 break
             failed_times.append(timestamp)
-            time.sleep(0.1)
         else:
             self.fail("Storage did not recover within its 30-second retry window")
         self.assertTrue(recovered["storage"]["available"])
+        self.assertEqual(armed.read_text(), "delayed", "Recovery did not exercise the delayed checkpoint")
+        armed.unlink()
         status, history = server.history(timestamp)
         self.assertEqual(status, 200, history)
         points = history["series"][0]["points"]
