@@ -1,0 +1,104 @@
+{
+  "scenario": "idle",
+  "duration_s": 60.003,
+  "pid": 2148248,
+  "host_before": {
+    "memory_kib": {
+      "MemAvailable": 46032136,
+      "Cached": 13631804,
+      "Dirty": 1880,
+      "Writeback": 0,
+      "SReclaimable": 1001148
+    },
+    "cpu_ticks": [
+      8955917,
+      12377,
+      3443492,
+      300833793,
+      259721,
+      1066766,
+      579228,
+      0,
+      0,
+      0
+    ]
+  },
+  "host_after": {
+    "memory_kib": {
+      "MemAvailable": 46023180,
+      "Cached": 13631620,
+      "Dirty": 736,
+      "Writeback": 0,
+      "SReclaimable": 1001148
+    },
+    "cpu_ticks": [
+      8961615,
+      12377,
+      3446080,
+      300945069,
+      259789,
+      1067598,
+      579762,
+      0,
+      0,
+      0
+    ]
+  },
+  "requests": [],
+  "observer_pid": 2148264,
+  "notes": [
+    "CPU percentage is relative to one core; observer overhead is separate.",
+    "Host memory differences include unrelated workloads and filesystem cache.",
+    "HTTP scenarios approximate client requests; use a browser for rendering measurements."
+  ],
+  "cpu_seconds": 0.02,
+  "cpu_one_core_percent": 0.0333,
+  "peak_rss_kib": 6136,
+  "peak_pss_kib": 3760,
+  "threads": 3,
+  "before": {
+    "cpu_ticks": 1,
+    "start_ticks": 43312436,
+    "VmHWM": 6100,
+    "VmRSS": 6100,
+    "Threads": 3,
+    "voluntary_ctxt_switches": 40,
+    "nonvoluntary_ctxt_switches": 2,
+    "all_threads_voluntary_ctxt_switches": 42,
+    "all_threads_nonvoluntary_ctxt_switches": 2,
+    "Pss": 3724,
+    "rchar": 114714,
+    "wchar": 161428,
+    "syscr": 224,
+    "syscw": 88,
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "cancelled_write_bytes": 0
+  },
+  "after": {
+    "cpu_ticks": 3,
+    "start_ticks": 43312436,
+    "VmHWM": 6136,
+    "VmRSS": 6136,
+    "Threads": 3,
+    "voluntary_ctxt_switches": 40,
+    "nonvoluntary_ctxt_switches": 2,
+    "all_threads_voluntary_ctxt_switches": 271,
+    "all_threads_nonvoluntary_ctxt_switches": 9,
+    "Pss": 3760,
+    "rchar": 190902,
+    "wchar": 268500,
+    "syscr": 638,
+    "syscw": 137,
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "cancelled_write_bytes": 0
+  },
+  "io_delta": {
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "syscr": 414,
+    "syscw": 49
+  },
+  "note": "Local native monitoring with updater bridge configured; no browser, no requested updater job. Temporary inbox; real systemd path unit not activated on this workstation."
+}

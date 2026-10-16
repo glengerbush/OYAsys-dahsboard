@@ -1,0 +1,113 @@
+{
+  "scenario": "history",
+  "duration_s": 20.003,
+  "pid": 2104565,
+  "host_before": {
+    "memory_kib": {
+      "MemAvailable": 44019200,
+      "Cached": 13610500,
+      "Dirty": 4928,
+      "Writeback": 0,
+      "SReclaimable": 995936
+    },
+    "cpu_ticks": [
+      8542117,
+      12176,
+      3331599,
+      295767587,
+      255862,
+      1031856,
+      559937,
+      0,
+      0,
+      0
+    ]
+  },
+  "host_after": {
+    "memory_kib": {
+      "MemAvailable": 44468832,
+      "Cached": 13612576,
+      "Dirty": 33860,
+      "Writeback": 0,
+      "SReclaimable": 996272
+    },
+    "cpu_ticks": [
+      8548239,
+      12176,
+      3333303,
+      295799831,
+      255899,
+      1032190,
+      560128,
+      0,
+      0,
+      0
+    ]
+  },
+  "requests": [
+    {
+      "elapsed_s": 0.872,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.677,
+      "ok": true
+    }
+  ],
+  "observer_pid": 2104838,
+  "notes": [
+    "CPU percentage is relative to one core; observer overhead is separate.",
+    "Host memory differences include unrelated workloads and filesystem cache.",
+    "HTTP scenarios approximate client requests; use a browser for rendering measurements."
+  ],
+  "cpu_seconds": 1.48,
+  "cpu_one_core_percent": 7.399,
+  "peak_rss_kib": 12364,
+  "peak_pss_kib": 8527,
+  "threads": 3,
+  "before": {
+    "cpu_ticks": 5,
+    "start_ticks": 43030027,
+    "VmHWM": 6464,
+    "VmRSS": 6464,
+    "Threads": 3,
+    "voluntary_ctxt_switches": 7,
+    "nonvoluntary_ctxt_switches": 8,
+    "Pss": 2627,
+    "rchar": 4617374,
+    "wchar": 58169,
+    "syscr": 1204,
+    "syscw": 44,
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "cancelled_write_bytes": 0
+  },
+  "after": {
+    "cpu_ticks": 153,
+    "start_ticks": 43030027,
+    "VmHWM": 12364,
+    "VmRSS": 12364,
+    "Threads": 3,
+    "voluntary_ctxt_switches": 11,
+    "nonvoluntary_ctxt_switches": 12,
+    "Pss": 8527,
+    "rchar": 259081474,
+    "wchar": 1584064,
+    "syscr": 63330,
+    "syscw": 106,
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "cancelled_write_bytes": 0
+  },
+  "io_delta": {
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "syscr": 62126,
+    "syscw": 62
+  },
+  "persistent_bytes": {
+    "history.sqlite3-shm": 32768,
+    "history.sqlite3-wal": 98912,
+    "history.sqlite3": 122888192
+  }
+}

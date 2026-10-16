@@ -1,0 +1,33 @@
+[Unit]
+Description=Check or apply an explicitly requested OYAsys update
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=10
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 -I /opt/oyasys/update.py
+TimeoutStartSec=600
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/oyasys /var/lib/oyasys /var/lib/oyasys-updater
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_DAC_OVERRIDE CAP_CHOWN CAP_FOWNER
+MemoryMax=256M
+TasksMax=16
+
+# At boot, recover an interrupted transaction or consume an authorized request, then exit.
+# No Before/After dependency on oyasys.service: the helper controls it via D-Bus.
+[Install]
+WantedBy=multi-user.target

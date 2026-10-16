@@ -1,0 +1,222 @@
+{
+  "scenario": "clients",
+  "duration_s": 90.003,
+  "pid": 2102192,
+  "host_before": {
+    "memory_kib": {
+      "MemAvailable": 44622008,
+      "Cached": 13610196,
+      "Dirty": 3556,
+      "Writeback": 0,
+      "SReclaimable": 995784
+    },
+    "cpu_ticks": [
+      8540123,
+      12176,
+      3331100,
+      295755275,
+      255853,
+      1031731,
+      559869,
+      0,
+      0,
+      0
+    ]
+  },
+  "host_after": {
+    "memory_kib": {
+      "MemAvailable": 44544100,
+      "Cached": 13602600,
+      "Dirty": 10840,
+      "Writeback": 0,
+      "SReclaimable": 996560
+    },
+    "cpu_ticks": [
+      8563251,
+      12176,
+      3337864,
+      295905426,
+      256023,
+      1033165,
+      560742,
+      0,
+      0,
+      0
+    ]
+  },
+  "requests": [
+    {
+      "elapsed_s": 0.005,
+      "ok": false,
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "elapsed_s": 0.006,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.006,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.005,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.002,
+      "ok": false,
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "elapsed_s": 0.005,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.002,
+      "ok": false,
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "elapsed_s": 0.006,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.004,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.004,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.006,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.001,
+      "ok": false,
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "elapsed_s": 0.005,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.002,
+      "ok": false,
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "elapsed_s": 0.005,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.004,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.002,
+      "ok": false,
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "elapsed_s": 0.003,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.003,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.001,
+      "ok": false,
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "elapsed_s": 0.003,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.003,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.001,
+      "ok": false,
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "elapsed_s": 0.003,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.004,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.003,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.001,
+      "ok": false,
+      "error": "HTTP Error 429: Too Many Requests"
+    }
+  ],
+  "observer_pid": 2104743,
+  "notes": [
+    "CPU percentage is relative to one core; observer overhead is separate.",
+    "Host memory differences include unrelated workloads and filesystem cache.",
+    "HTTP scenarios approximate client requests; use a browser for rendering measurements."
+  ],
+  "cpu_seconds": 0.06,
+  "cpu_one_core_percent": 0.0667,
+  "peak_rss_kib": 6336,
+  "peak_pss_kib": 2438,
+  "threads": 3,
+  "before": {
+    "cpu_ticks": 10,
+    "start_ticks": 43018176,
+    "VmHWM": 6120,
+    "VmRSS": 6120,
+    "Threads": 3,
+    "voluntary_ctxt_switches": 44,
+    "nonvoluntary_ctxt_switches": 8,
+    "Pss": 2287,
+    "rchar": 335664,
+    "wchar": 420540,
+    "syscr": 1129,
+    "syscw": 200,
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "cancelled_write_bytes": 0
+  },
+  "after": {
+    "cpu_ticks": 16,
+    "start_ticks": 43018176,
+    "VmHWM": 6336,
+    "VmRSS": 6336,
+    "Threads": 3,
+    "voluntary_ctxt_switches": 77,
+    "nonvoluntary_ctxt_switches": 10,
+    "Pss": 2438,
+    "rchar": 662808,
+    "wchar": 872183,
+    "syscr": 1803,
+    "syscw": 351,
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "cancelled_write_bytes": 0
+  },
+  "io_delta": {
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "syscr": 674,
+    "syscw": 151
+  },
+  "persistent_bytes": {
+    "history.sqlite3-shm": 32768,
+    "history.sqlite3-wal": 94792,
+    "history.sqlite3": 65536
+  }
+}

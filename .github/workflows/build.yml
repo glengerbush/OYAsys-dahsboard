@@ -1,0 +1,71 @@
+name: Check and package
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check
+        run: |
+          cargo +stable fmt --check
+          cargo +stable clippy --locked --all-targets -- -D warnings
+          cargo +stable test --locked
+      - name: Browser and persistence checks
+        run: |
+          npm ci
+          npm run check
+          npx playwright install --with-deps chromium
+          cargo +stable build --locked
+          export CHROMIUM_PATH="$(node --input-type=module -e 'import {chromium} from "playwright"; process.stdout.write(chromium.executablePath())')"
+          npm run test:browser
+          python3 tests/storage_faults.py
+          python3 tests/telemetry_availability.py
+          python3 tests/updater.py
+      - name: Package
+        run: |
+          cargo +stable build --locked --release
+          sh tools/package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oyasys-linux-x86_64
+          path: |
+            dist/oyasys-linux-x86_64.tar.gz*
+            dist/oyasys-update.json
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: linux
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: oyasys-linux-x86_64
+          path: dist
+      - name: Validate tag and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          version = json.load(open('dist/oyasys-update.json'))['version']
+          tag = os.environ['RELEASE_TAG']
+          assert re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', tag), 'Stable version tags only'
+          assert tag == 'v' + version, 'Tag must match the packaged binary version'
+          PY
+          gh release create "$RELEASE_TAG" dist/oyasys-linux-x86_64.tar.gz dist/oyasys-linux-x86_64.tar.gz.sha256 dist/oyasys-update.json --verify-tag --generate-notes --title "OYAsys $RELEASE_TAG" --latest

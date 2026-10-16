@@ -1,0 +1,37 @@
+[Unit]
+Description=OYAsys hardware dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=oyasys
+Group=oyasys
+Environment=OYASYS_BIND=127.0.0.1:9850
+Environment=OYASYS_ORIGIN=http://127.0.0.1:9850
+Environment=OYASYS_UPDATER_DIR=/var/lib/oyasys-updater
+EnvironmentFile=-/etc/oyasys/environment
+ExecStart=/opt/oyasys/oyasys serve --bind ${OYASYS_BIND} --origin ${OYASYS_ORIGIN} --data-dir /var/lib/oyasys
+StateDirectory=oyasys
+StateDirectoryMode=0750
+WorkingDirectory=/var/lib/oyasys
+UMask=0027
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/oyasys-updater/inbox
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# NVIDIA device nodes must remain visible. Read permissions are configured
+# explicitly by the operator; do not enable PrivateDevices or blanket root.
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,38 @@
+{
+  "sqlite": "3.53.4",
+  "results": [
+    {
+      "encoding": "dense",
+      "rows": 259200,
+      "metrics": 50,
+      "bytes": 122355712,
+      "write": {
+        "wall_s": 11.304436485981569,
+        "cpu_s": 11.224003406
+      },
+      "read_all": {
+        "wall_s": 1.4833268719958141,
+        "cpu_s": 1.4720823959999993
+      },
+      "peak_rss_kib": 19036,
+      "checksum": 835922257.9348522
+    },
+    {
+      "encoding": "wide",
+      "rows": 259200,
+      "metrics": 50,
+      "bytes": 137154560,
+      "write": {
+        "wall_s": 14.429322488984326,
+        "cpu_s": 14.130134601
+      },
+      "read_all": {
+        "wall_s": 4.704339576011989,
+        "cpu_s": 4.653938314000001
+      },
+      "peak_rss_kib": 19312,
+      "checksum": 835922257.9348522
+    }
+  ],
+  "note": "Development encoding comparison, not service/NVML footprint. Each format has an isolated Python process, one transaction per collection, identical metrics/indexes/cache/WAL settings. Full reads decode every gauge."
+}

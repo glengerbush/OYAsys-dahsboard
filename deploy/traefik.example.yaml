@@ -1,0 +1,21 @@
+# Save through Coolify: Servers > server > Proxy > Dynamic Configurations.
+# Replace hostname, upstream, and example networks before enabling this route.
+# Check your existing entryPoint names and TLS configuration first.
+http:
+  routers:
+    oyasys:
+      rule: 'Host(`oyasys.hostname.tld`)'
+      entryPoints: [http]
+      middlewares: [oyasys-private]
+      service: oyasys
+  middlewares:
+    oyasys-private:
+      ipAllowList:
+        sourceRange:
+          - '192.168.1.0/24' # REPLACE with actual LAN and routed client ranges
+          # Add actual routed Tailscale source addresses when required.
+  services:
+    oyasys:
+      loadBalancer:
+        servers:
+          - url: 'http://host.docker.internal:9850'

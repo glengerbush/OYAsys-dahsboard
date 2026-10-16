@@ -1,0 +1,12 @@
+{
+  "name": "oyasys-dashboard-checks",
+  "private": true,
+  "scripts": {
+    "check": "tsc --allowJs --checkJs --noEmit --target ES2022 --lib ES2022,DOM web/app.js",
+    "test:browser": "node --test tests/browser.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "playwright": "1.56.1"
+  }
+}

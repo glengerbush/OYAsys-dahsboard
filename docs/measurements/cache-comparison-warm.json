@@ -1,0 +1,59 @@
+{
+  "trials": [
+    {
+      "cache_kib": 512,
+      "trial": 1,
+      "wall_s": 0.849,
+      "cpu_s": 0.81,
+      "rss_kib": 8776,
+      "pss_kib": 6471,
+      "points": 30064
+    },
+    {
+      "cache_kib": 128,
+      "trial": 1,
+      "wall_s": 0.762,
+      "cpu_s": 0.73,
+      "rss_kib": 8256,
+      "pss_kib": 4428,
+      "points": 30064
+    },
+    {
+      "cache_kib": 128,
+      "trial": 2,
+      "wall_s": 0.453,
+      "cpu_s": 0.43,
+      "rss_kib": 8256,
+      "pss_kib": 4428,
+      "points": 30064
+    },
+    {
+      "cache_kib": 512,
+      "trial": 2,
+      "wall_s": 0.45,
+      "cpu_s": 0.43,
+      "rss_kib": 8776,
+      "pss_kib": 6471,
+      "points": 30064
+    },
+    {
+      "cache_kib": 512,
+      "trial": 3,
+      "wall_s": 0.497,
+      "cpu_s": 0.47,
+      "rss_kib": 8776,
+      "pss_kib": 6471,
+      "points": 30064
+    },
+    {
+      "cache_kib": 128,
+      "trial": 3,
+      "wall_s": 0.49,
+      "cpu_s": 0.48,
+      "rss_kib": 8256,
+      "pss_kib": 4428,
+      "points": 30064
+    }
+  ],
+  "notes": "Same 50-metric range, 800 points/series, 30-day database clone; warm-up query excluded; order alternates; page caches warm; CPU ticks=100Hz. No compilation or other history load during trials."
+}

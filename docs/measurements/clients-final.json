@@ -1,0 +1,182 @@
+{
+  "scenario": "clients",
+  "duration_s": 60.005,
+  "pid": 2116779,
+  "host_before": {
+    "memory_kib": {
+      "MemAvailable": 44692140,
+      "Cached": 14403852,
+      "Dirty": 3600,
+      "Writeback": 0,
+      "SReclaimable": 999288
+    },
+    "cpu_ticks": [
+      8708792,
+      12179,
+      3376829,
+      297032713,
+      257073,
+      1043520,
+      566377,
+      0,
+      0,
+      0
+    ]
+  },
+  "host_after": {
+    "memory_kib": {
+      "MemAvailable": 45217180,
+      "Cached": 14036972,
+      "Dirty": 9308,
+      "Writeback": 0,
+      "SReclaimable": 999292
+    },
+    "cpu_ticks": [
+      8715128,
+      12235,
+      3378956,
+      297143556,
+      257157,
+      1044435,
+      566799,
+      0,
+      0,
+      0
+    ]
+  },
+  "requests": [
+    {
+      "elapsed_s": 0.004,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.006,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.003,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.004,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.004,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.003,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.006,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.007,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.006,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.005,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.004,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.005,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.005,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.004,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.007,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.003,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.004,
+      "ok": true
+    },
+    {
+      "elapsed_s": 0.004,
+      "ok": true
+    }
+  ],
+  "observer_pid": 2117959,
+  "notes": [
+    "CPU percentage is relative to one core; observer overhead is separate.",
+    "Host memory differences include unrelated workloads and filesystem cache.",
+    "HTTP scenarios approximate client requests; use a browser for rendering measurements."
+  ],
+  "cpu_seconds": 0.04,
+  "cpu_one_core_percent": 0.0667,
+  "peak_rss_kib": 6372,
+  "peak_pss_kib": 3921,
+  "threads": 3,
+  "before": {
+    "cpu_ticks": 11,
+    "start_ticks": 43096559,
+    "VmHWM": 6152,
+    "VmRSS": 6152,
+    "Threads": 3,
+    "voluntary_ctxt_switches": 46,
+    "nonvoluntary_ctxt_switches": 15,
+    "all_threads_voluntary_ctxt_switches": 397,
+    "all_threads_nonvoluntary_ctxt_switches": 28,
+    "Pss": 3701,
+    "rchar": 281243,
+    "wchar": 354021,
+    "syscr": 920,
+    "syscw": 172,
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "cancelled_write_bytes": 0
+  },
+  "after": {
+    "cpu_ticks": 15,
+    "start_ticks": 43096559,
+    "VmHWM": 6372,
+    "VmRSS": 6372,
+    "Threads": 3,
+    "voluntary_ctxt_switches": 72,
+    "nonvoluntary_ctxt_switches": 15,
+    "all_threads_voluntary_ctxt_switches": 662,
+    "all_threads_nonvoluntary_ctxt_switches": 32,
+    "Pss": 3921,
+    "rchar": 508892,
+    "wchar": 797585,
+    "syscr": 1372,
+    "syscw": 277,
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "cancelled_write_bytes": 0
+  },
+  "io_delta": {
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "syscr": 452,
+    "syscw": 105
+  },
+  "persistent_bytes": {
+    "history.sqlite3-shm": 32768,
+    "history.sqlite3-wal": 94792,
+    "history.sqlite3": 61440,
+    "oyasys.lock": 0
+  }
+}

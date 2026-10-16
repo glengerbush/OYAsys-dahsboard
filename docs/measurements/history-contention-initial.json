@@ -1,0 +1,14 @@
+{
+  "metrics": 50,
+  "stored_collections": 259198,
+  "first_query_s": 0.6651958839793224,
+  "contention_seconds": 31.211377567000454,
+  "responses": {
+    "429": 559,
+    "200": 41
+  },
+  "new_collections": 3,
+  "latest_state_max_latency_s": 0.008544948999769986,
+  "peak_and_gap_preserved": true,
+  "abandoned_query_recovered": true
+}

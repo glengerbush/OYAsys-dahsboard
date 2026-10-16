@@ -1,0 +1,4 @@
+# Exact browser origin, including scheme and port if nonstandard, no final slash.
+# Keep loopback until a restricted proxy-to-host route is configured.
+OYASYS_BIND=127.0.0.1:9850
+OYASYS_ORIGIN=http://127.0.0.1:9850

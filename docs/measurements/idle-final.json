@@ -1,0 +1,109 @@
+{
+  "scenario": "idle",
+  "duration_s": 60.002,
+  "pid": 2116779,
+  "host_before": {
+    "memory_kib": {
+      "MemAvailable": 44687804,
+      "Cached": 13984992,
+      "Dirty": 10472,
+      "Writeback": 0,
+      "SReclaimable": 998376
+    },
+    "cpu_ticks": [
+      8695530,
+      12179,
+      3373321,
+      296880888,
+      256927,
+      1042275,
+      565702,
+      0,
+      0,
+      0
+    ]
+  },
+  "host_after": {
+    "memory_kib": {
+      "MemAvailable": 44808452,
+      "Cached": 14334452,
+      "Dirty": 8120,
+      "Writeback": 16,
+      "SReclaimable": 999136
+    },
+    "cpu_ticks": [
+      8706446,
+      12179,
+      3375898,
+      296986689,
+      257033,
+      1043153,
+      566195,
+      0,
+      0,
+      0
+    ]
+  },
+  "requests": [],
+  "observer_pid": 2116972,
+  "notes": [
+    "CPU percentage is relative to one core; observer overhead is separate.",
+    "Host memory differences include unrelated workloads and filesystem cache.",
+    "HTTP scenarios approximate client requests; use a browser for rendering measurements."
+  ],
+  "cpu_seconds": 0.03,
+  "cpu_one_core_percent": 0.05,
+  "peak_rss_kib": 6124,
+  "peak_pss_kib": 2248,
+  "threads": 3,
+  "before": {
+    "cpu_ticks": 7,
+    "start_ticks": 43096559,
+    "VmHWM": 6088,
+    "VmRSS": 6088,
+    "Threads": 3,
+    "voluntary_ctxt_switches": 45,
+    "nonvoluntary_ctxt_switches": 15,
+    "all_threads_voluntary_ctxt_switches": 51,
+    "all_threads_nonvoluntary_ctxt_switches": 15,
+    "Pss": 1727,
+    "rchar": 167015,
+    "wchar": 161438,
+    "syscr": 299,
+    "syscw": 89,
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "cancelled_write_bytes": 0
+  },
+  "after": {
+    "cpu_ticks": 10,
+    "start_ticks": 43096559,
+    "VmHWM": 6124,
+    "VmRSS": 6124,
+    "Threads": 3,
+    "voluntary_ctxt_switches": 45,
+    "nonvoluntary_ctxt_switches": 15,
+    "all_threads_voluntary_ctxt_switches": 281,
+    "all_threads_nonvoluntary_ctxt_switches": 23,
+    "Pss": 2248,
+    "rchar": 243167,
+    "wchar": 268510,
+    "syscr": 713,
+    "syscw": 138,
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "cancelled_write_bytes": 0
+  },
+  "io_delta": {
+    "read_bytes": 0,
+    "write_bytes": 0,
+    "syscr": 414,
+    "syscw": 49
+  },
+  "persistent_bytes": {
+    "history.sqlite3-shm": 32768,
+    "history.sqlite3-wal": 94792,
+    "history.sqlite3": 53248,
+    "oyasys.lock": 0
+  }
+}
