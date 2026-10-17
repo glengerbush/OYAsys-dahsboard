@@ -24,6 +24,9 @@ RestrictRealtime=yes
 LockPersonality=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_DAC_OVERRIDE CAP_CHOWN CAP_FOWNER
+# Retain the UID-switch capability through interpreter startup so candidates
+# and database helpers can run as oyasys. UID changes clear ambient capabilities.
+AmbientCapabilities=CAP_SETUID
 MemoryMax=256M
 TasksMax=16
 

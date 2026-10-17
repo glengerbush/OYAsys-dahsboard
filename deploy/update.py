@@ -22,6 +22,7 @@ import sys
 import tarfile
 import tempfile
 import time
+import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -530,6 +531,7 @@ class Updater:
             if request["action"] == "check": self.check(identifier)
             else: self.install(identifier, request["version"])
         except Exception as error:
+            traceback.print_exc()
             self.status(identifier, "error", str(error))
         finally:
             # A new request may arrive after terminal status. Never delete it.

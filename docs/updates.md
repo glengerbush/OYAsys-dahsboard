@@ -49,3 +49,17 @@ The updater has a finite systemd start limit (10 starts per minute), preventing 
 Make and review changes, update the package version in `Cargo.toml` and `Cargo.lock`, then test and commit. When ready to publish, push a matching stable tag, for example `v0.2.1` for version `0.2.1`. The Actions workflow runs Rust, browser, persistence, telemetry, and updater checks, builds on Ubuntu 22.04, verifies the tag matches the packaged binary, and publishes the three assets. A failed check prevents publication. Each release tag is unique; do not overwrite an existing version.
 
 No release was published as part of implementing this feature. Initial server installation, real systemd activation, compatibility, proxy reachability, and resource qualification remain owner-run. Local tests use temporary files and service/network adapters; they cannot qualify the actual Minisforum installation.
+
+## Permission errors during a check
+
+The updater runs candidate version checks and database helpers as the `oyasys` account. Its service must retain `CAP_SETUID` in the effective/permitted sets, not just the bounding set. An observed startup environment kept it in the bounding set but removed it from the active sets: the same version check worked in a root shell and failed inside the service at `setreuid`. The packaged unit explicitly sets `AmbientCapabilities=CAP_SETUID`; switching to the service account clears ambient capabilities before executing the candidate.
+
+For older installations, add a service drop-in without replacing the existing restrictions:
+
+```sh
+sudo mkdir -p /etc/systemd/system/oyasys-update.service.d
+printf '[Service]\nAmbientCapabilities=CAP_SETUID\n' | sudo tee /etc/systemd/system/oyasys-update.service.d/uid-switch.conf
+sudo systemctl daemon-reload
+```
+
+Then request a new check in Settings. This changes only the on-demand updater; it adds no daemon or polling. Updater failures also write tracebacks to `journalctl -u oyasys-update.service`, while the dashboard receives the short error message. A successful systemd exit alone does not indicate a successful update; inspect the reported updater state.
