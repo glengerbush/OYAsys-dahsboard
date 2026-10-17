@@ -136,7 +136,6 @@ function updateStaticDetails(){
 }
 function renderSnapshot(){
   if(!state||document.hidden)return;
-  el('hostname').textContent=state.inventory.hostname;
   el('synthetic-notice').hidden=!state.inventory.synthetic;
   const snapshot=state.snapshot;
   for(const[id,targets]of readouts){
