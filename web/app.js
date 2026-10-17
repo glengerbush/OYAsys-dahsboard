@@ -55,6 +55,14 @@ const colors = ['#6fc8e6','#8accad','#b5a2eb','#eeb76b','#74a9ef','#e3a2c3'];
 const chartLimit = 2000;
 /** @type {Map<string,HTMLElement[]>} */
 let readouts = new Map();
+/** @typedef {{entries:{name:string,bytes:number}[],total_bytes:number|null,files_bytes:number|null,other_folders_bytes:number,complete:boolean,message:string}} FolderScan */
+/** @type {Map<string,{result:FolderScan,at:number}>} */
+const folderResults = new Map();
+let folderActive = '';
+/** @type {AbortController|null} */
+let folderController = null;
+/** @type {{prefix:string,free:HTMLElement,total:HTMLElement,bar:HTMLElement,segments:HTMLElement[],legend:HTMLElement[],message:HTMLElement,analyze:HTMLButtonElement,analysis:HTMLElement}[]} */
+let filesystemViews = [];
 /** @param {string} id @returns {HTMLElement} */
 function el(id) { const node=document.getElementById(id); if(!node) throw new Error(`Missing element: ${id}`); return node; }
 /** @param {string} id @returns {HTMLInputElement} */
@@ -125,7 +133,72 @@ function rebuild(){
   for(const id of ['system-panels','sensor-panels','io-panels']){if(!el(id).children.length)el(id).append(node('p','empty-section','No readings available in this group. See Sources & availability below.'));}
   el('source-count').textContent=`${metrics.length} sensors · ${selectedIds().length} charted`;
   el('p100-charts').hidden=el('p100-charts').children.length===0;
-  updateStaticDetails();renderSnapshot();
+  buildFilesystemCapacity();updateStaticDetails();renderSnapshot();
+}
+function buildFilesystemCapacity(){
+  const parent=el('filesystem-capacity');parent.replaceChildren();filesystemViews=[];
+  const filesystems=state?.inventory.metrics.filter(m=>m.group==='storage'&&m.id.startsWith('filesystem.')&&m.id.endsWith('.total'))||[];
+  parent.hidden=filesystems.length===0;
+  for(const metric of filesystems){
+    const article=node('article','filesystem-card');const heading=node('div','filesystem-heading');
+    const identity=node('div');identity.append(node('h3','filesystem-name',metric.label.replace(/ capacity$/,'')),node('p','filesystem-source',metric.source));
+    const reading=node('div','filesystem-reading');const free=node('strong');const total=node('span');reading.append(free,total);heading.append(identity,reading);
+    const bar=node('div','filesystem-bar');bar.setAttribute('aria-hidden','true');
+    const segments=['used','reserved','free'].map(kind=>node('span',`filesystem-segment filesystem-${kind}`));bar.append(...segments);
+    const details=node('dl','filesystem-legend');const legend=['Used','Reserved','Available'].map((label,index)=>{const group=node('div');const term=node('dt',`filesystem-key filesystem-key-${index}`,label);const value=node('dd');group.append(term,value);details.append(group);return value;});
+    const message=node('p','filesystem-message');
+    const actions=node('div','filesystem-actions');const analyze=document.createElement('button');analyze.type='button';analyze.textContent='Analyze folders';analyze.addEventListener('click',()=>void analyzeFolders(metric.id));
+    actions.append(analyze,node('span','','Scans only when requested. Up to 10 seconds.'));
+    const analysis=node('div','folder-analysis');analysis.hidden=true;analysis.setAttribute('role','region');analysis.setAttribute('aria-label',`Folder breakdown for ${metric.label.replace(/ capacity$/,'')}`);
+    article.append(heading,bar,details,message,actions,analysis);parent.append(article);
+    filesystemViews.push({prefix:metric.id.slice(0,-6),free,total,bar,segments,legend,message,analyze,analysis});
+    const saved=folderResults.get(metric.id);if(saved)renderFolderAnalysis(analysis,saved.result,saved.at);
+    if(folderActive===metric.id){analysis.hidden=false;analysis.textContent='Analyzing accessible folders…';}
+    analyze.disabled=!!folderActive;
+  }
+}
+/** @param {HTMLElement} target @param {FolderScan} result @param {number} at */
+function renderFolderAnalysis(target,result,at){
+  target.replaceChildren();target.hidden=false;
+  const title=node('div','folder-heading');title.append(node('h4','','Folder breakdown'),node('span','',`${result.complete?'Scanned':'Partial scan'} · ${new Date(at).toLocaleTimeString()}`));target.append(title);
+  const entries=[...result.entries];
+  if(result.other_folders_bytes>0)entries.push({name:'Other folders',bytes:result.other_folders_bytes});
+  if(result.files_bytes!=null&&result.files_bytes>0)entries.push({name:'Files & directory metadata at this level',bytes:result.files_bytes});
+  const sum=entries.reduce((total,item)=>total+item.bytes,0);const total=result.total_bytes??sum;
+  const list=node('ol','folder-list');
+  entries.forEach((entry,index)=>{
+    const row=node('li','folder-row');const text=node('div','folder-label');const value=node('span','',format(entry.bytes,'bytes'));text.append(node('span','folder-name',entry.name),value);
+    const track=node('div','folder-track');track.setAttribute('aria-hidden','true');const fill=node('span');fill.style.width=`${total>0?Math.min(100,entry.bytes/total*100):0}%`;fill.style.background=colors[index%colors.length];track.append(fill);row.append(text,track);list.append(row);
+  });
+  if(entries.length)target.append(list);else target.append(node('p','muted',result.complete?'No allocated file data found.':'No folder totals were available before the scan ended.'));
+  target.append(node('p','folder-note',result.message));
+}
+/** @param {string} metricId */
+async function analyzeFolders(metricId){
+  if(!state||folderActive)return;
+  folderActive=metricId;folderController=new AbortController();
+  for(const view of filesystemViews)view.analyze.disabled=true;
+  const target=()=>filesystemViews.find(view=>`${view.prefix}.total`===metricId)?.analysis;
+  const initial=target();if(initial){initial.hidden=false;initial.textContent='Analyzing accessible folders…';initial.setAttribute('aria-busy','true');}
+  const timeout=setTimeout(()=>folderController?.abort(),15000);
+  try{
+    const result=await api('/storage/analyze',{method:'POST',headers:{'Content-Type':'application/json','X-OYAsys-CSRF':state.csrf_token},body:JSON.stringify({metric_id:metricId}),signal:folderController.signal});
+    const at=Date.now();folderResults.set(metricId,{result,at});const current=target();if(current)renderFolderAnalysis(current,result,at);
+  }catch(error){const current=target();if(current){current.replaceChildren(node('p','folder-note',error.name==='AbortError'?'Folder analysis timed out. Try again when disk activity is lower.':error.message));current.hidden=false;}}
+  finally{clearTimeout(timeout);folderActive='';folderController=null;const current=target();current?.removeAttribute('aria-busy');renderFilesystemCapacity();}
+}
+function renderFilesystemCapacity(){
+  const values=state?.snapshot?.values;
+  for(const view of filesystemViews){
+    const total=values?.[`${view.prefix}.total`];const used=values?.[`${view.prefix}.used`];const available=values?.[`${view.prefix}.available`];
+    const valid=typeof total==='number'&&Number.isFinite(total)&&total>0&&typeof used==='number'&&Number.isFinite(used)&&used>=0&&used<=total&&typeof available==='number'&&Number.isFinite(available)&&available>=0&&available<=total-used;
+    view.bar.hidden=!valid;view.analyze.disabled=!!folderActive||!valid;
+    if(!valid){view.free.textContent='Unavailable';view.total.textContent='Capacity reading unavailable';for(const item of view.legend)item.textContent='—';view.message.textContent='Waiting for a complete filesystem reading. See Sources & availability for details.';continue;}
+    const reserved=Math.max(0,total-used-available);const amounts=[used,reserved,available];
+    view.free.textContent=`${format(available,'bytes')} available`;view.total.textContent=`of ${format(total,'bytes')} capacity`;
+    amounts.forEach((amount,index)=>{view.segments[index].style.width=`${amount/total*100}%`;view.legend[index].textContent=`${format(amount,'bytes')} · ${format(amount/total*100,'%')}`;});
+    view.message.textContent=reserved>0?'Reserved space is free space the filesystem does not report as available.':'No reserved space reported.';
+  }
 }
 /** @param {HTMLElement} target @param {[string,string][]} values */
 function setDetails(target,values){target.replaceChildren();for(const[label,value]of values)target.append(node('dt','',label),node('dd','',value));}
@@ -136,6 +209,7 @@ function updateStaticDetails(){
 }
 function renderSnapshot(){
   if(!state||document.hidden)return;
+  renderFilesystemCapacity();
   el('synthetic-notice').hidden=!state.inventory.synthetic;
   const snapshot=state.snapshot;
   for(const[id,targets]of readouts){

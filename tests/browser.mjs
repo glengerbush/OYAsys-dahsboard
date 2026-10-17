@@ -31,7 +31,7 @@ async function server(t, catalog = metrics, cadence = 10000, options = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'oyasys-browser-'));
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
-  const samples = Array.from({length:120}, (_,index)=>({timestamp_ms:now-(119-index)*cadence,values:{'gpu.p100.temperature':index===60?81:38+index%10,'gpu.p100.utilization':index%50,'gpu.p100.power':31+index%10,'fan.fixture.rpm':1400+index%20*10,'fan.missing.rpm':null,'cpu.utilization':0,'memory.used':8*1024**3,'storage.used':128*1024**3}}));
+  const samples = Array.from({length:120}, (_,index)=>({timestamp_ms:now-(119-index)*cadence,values:{'gpu.p100.temperature':index===60?81:38+index%10,'gpu.p100.utilization':index%50,'gpu.p100.power':31+index%10,'fan.fixture.rpm':1400+index%20*10,'fan.missing.rpm':null,'cpu.utilization':0,'memory.used':8*1024**3,'storage.used':128*1024**3,...options.values}}));
   await writeFile(join(directory,'fixture.json'),JSON.stringify({inventory:{hostname:'minisforum-fixture',system:[{label:'System',value:'Synthetic Minisforum fixture'},{label:'Memory',value:'32 GiB'}],metrics:catalog,warnings:[],synthetic:true,...(options.availability?{availability:options.availability}:{})},samples,now_ms:now}));
   await writeFile(join(directory,'clock'),String(now));
   if(options.blockStorage)await writeFile(join(directory,'data'),'Deliberately unavailable storage for browser failure test');
@@ -129,6 +129,32 @@ test('dashboard shows real HTTP fixture, ranges, verified mapping, settings and 
   await page.getByRole('button',{name:'Apply range',exact:true}).click();
   await page.getByRole('button',{name:'Refresh dashboard',exact:true}).click();
   assert.deepEqual(errors,[]);
+});
+
+test('filesystem capacity distinguishes used, available, reserved, empty and unavailable readings', {timeout:30000}, async t=>{
+  const catalog=[];const values={};const GiB=1024**3;
+  for(const [key,path,total,used,available] of [['root','/',512*GiB,300*GiB,196*GiB],['data','/data',1024*GiB,0,1024*GiB],['missing','/offline',null,null,null]]){
+    for(const [suffix,label,value] of [['total','capacity',total],['used','used',used],['available','available',available]]){
+      const id=`filesystem.${key}.${suffix}`;catalog.push({id,label:`${path} ${label}`,unit:'bytes',group:'storage',source:`ext4 · Synthetic disk · ${path}`});values[id]=value;
+    }
+  }
+  const {url}=await server(t,catalog,10000,{values});const instance=await browser(t);const page=await instance.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',error=>errors.push(error.message));await page.goto(url);
+  const root=page.locator('.filesystem-card').filter({has:page.getByRole('heading',{name:'/',exact:true})});await root.getByText('196 GiB available',{exact:true}).waitFor();
+  assert.match(await root.innerText(),/300 GiB · 58.6%/);assert.match(await root.innerText(),/16 GiB · 3.1%/);
+  const empty=page.locator('.filesystem-card').filter({has:page.getByRole('heading',{name:'/data',exact:true})});assert.match(await empty.innerText(),/1 TiB available/);assert.match(await empty.innerText(),/0 B · 0%/);
+  const unavailable=page.locator('.filesystem-card').filter({has:page.getByRole('heading',{name:'/offline',exact:true})});assert.match(await unavailable.innerText(),/Unavailable/);assert.equal(await unavailable.locator('.filesystem-bar').isVisible(),false);assert.equal(await unavailable.getByRole('button',{name:'Analyze folders'}).isDisabled(),true);
+  await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.deepEqual(errors,[]);
+});
+
+test('folder breakdown scans only on click and renders real file sizes safely', {timeout:30000}, async t=>{
+  const mount=await mkdtemp(join(tmpdir(),'oyasys-folders-'));t.after(()=>rm(mount,{recursive:true,force:true}));
+  await mkdir(join(mount,'Models <P100>'));await writeFile(join(mount,'Models <P100>','weights.bin'),Buffer.alloc(2*1024**2,7));await mkdir(join(mount,'Logs'));await writeFile(join(mount,'Logs','server.log'),Buffer.alloc(1024**2,8));
+  const catalog=['total','used','available'].map(suffix=>({id:`filesystem.test.${suffix}`,label:`${mount} ${suffix==='total'?'capacity':suffix}`,unit:'bytes',group:'storage',source:'Synthetic filesystem'}));
+  const {url}=await server(t,catalog,10000,{values:{'filesystem.test.total':10*1024**3,'filesystem.test.used':2*1024**3,'filesystem.test.available':8*1024**3}});
+  const instance=await browser(t);const page=await instance.newPage();const requests=[];page.on('request',request=>{if(request.url().endsWith('/storage/analyze'))requests.push(request.method());});await page.goto(url);await page.getByText('8 GiB available',{exact:true}).waitFor();assert.deepEqual(requests,[]);
+  await page.getByRole('button',{name:'Analyze folders',exact:true}).click();await page.getByRole('heading',{name:'Folder breakdown',exact:true}).waitFor();assert.deepEqual(requests,['POST']);
+  const analysis=page.getByRole('region',{name:`Folder breakdown for ${mount}`,exact:true});assert.match(await analysis.innerText(),/Models <P100>/);assert.match(await analysis.innerText(),/2 MiB/);assert.equal(await analysis.locator('p100').count(),0);assert.match(await analysis.innerText(),/Logs/);assert.match(await analysis.innerText(),/Scanned/);
+  assert.equal(await page.getByRole('button',{name:'Analyze folders',exact:true}).isEnabled(),true);
 });
 
 test('absence of P100 remains explicit; available CPU zero remains a reading', {timeout:30000}, async t=>{

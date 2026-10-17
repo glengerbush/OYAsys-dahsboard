@@ -1,6 +1,6 @@
 # Architecture
 
-One Rust process owns three fixed threads: the current-thread HTTP runtime, a collector/SQLite writer, and one history reader. Work queues and HTTP connections are bounded. Browser clients reuse completed samples; they never start another collector. Monitoring requires no subprocess. Software updates use a temporary helper only on explicit request.
+One Rust process owns three fixed threads: the current-thread HTTP runtime, a collector/SQLite writer, and one history reader. Work queues and HTTP connections are bounded. Browser clients reuse completed samples; they never start another collector. Monitoring requires no subprocess. Software updates and folder analysis use temporary helpers only on explicit request.
 
 ## Modules
 
@@ -35,3 +35,13 @@ Incremental updates use sequence cursors. A cursor outside retained coverage req
 Integration tests use the actual HTTP executable with deterministic synthetic readings, a controllable clock, and disposable SQLite. Browser tests use the same server. Resource experiments and manual commissioning are described in [performance.md](performance.md) and [installation.md](installation.md).
 
 Local tests cannot verify NVIDIA driver ABI behavior on the user's P100, motherboard channel labeling, service-account permissions, or existing proxy configuration. Those remain manual commissioning items. No code writes PWM, fan, GPU control, or cooling-profile settings.
+
+## Filesystem capacity and folder analysis
+
+Capacity bars reuse the existing filesystem sample: used bytes, bytes available to unprivileged processes, and their difference from total capacity as reserved space. They add no hardware reads or polling.
+
+An explicit Analyze folders request starts one temporary worker and GNU `/usr/bin/du`, running as the existing service account at nice level 19. It measures allocated space, does not follow symlinks or cross filesystem device boundaries, and returns the largest 12 immediate folders, an aggregate for other folders, and files/directory metadata at the mount root. Hard links count once; shared extents, snapshots, and filesystem metadata can differ from filesystem usage.
+
+Only one scan runs at a time. Limits are 10 seconds elapsed, 5 CPU seconds, 64 MiB child address space, and 256 KiB captured output. Scan completion or cancellation reaps the child and releases the worker. No scan runs at startup or on a timer; results remain only in the requesting browser until reload. Incomplete scans are labeled partial and may omit unfinished folders. Monitoring and history remain independent.
+
+Existing service permissions and sandboxing still apply: protected home directories, Docker data, and other inaccessible paths may be absent. No elevated helper or permission changes are installed. GNU coreutils `du` is required only for this optional action.

@@ -18,6 +18,8 @@ The installer creates a dedicated `oyasys` account, installs the executable and 
 
 No Rust, Node, npm, or build tools are required on the server. Python 3 with its standard library is required by the on-demand Settings update helper; it does not run continuously. It also runs the optional profiling helper. NVIDIA metrics use the library already installed by the NVIDIA driver; other monitoring works without it.
 
+Optional folder analysis uses GNU coreutils `/usr/bin/du`, normally already installed. The dashboard scans only after **Analyze folders** is clicked; service permissions and sandboxing determine which folders can be read. Partial results are labeled, and capacity monitoring works without `du`.
+
 ## Verify sensors and the cooling fan
 
 Run `./oyasys discover` as the intended service user once installed:

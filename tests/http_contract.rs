@@ -887,3 +887,131 @@ fn settings_are_not_acknowledged_during_update_trial_or_unresolved_recovery() {
         12
     );
 }
+
+#[test]
+fn folder_analysis_is_explicit_scoped_and_counts_real_allocated_files() {
+    use std::os::unix::{
+        ffi::OsStrExt,
+        fs::{symlink, MetadataExt},
+    };
+    let mut first = Server::new(json!([]));
+    first.child.kill().unwrap();
+    first.child.wait().unwrap();
+    let dir = first.dir.clone();
+    first.dir = PathBuf::new();
+    drop(first);
+    let mount = dir.join("filesystem");
+    let folder = mount.join("Models & weights");
+    fs::create_dir_all(&folder).unwrap();
+    let model = folder.join("weights.bin");
+    fs::write(&model, vec![7u8; 16 * 1024]).unwrap();
+    fs::hard_link(&model, folder.join("same-data.bin")).unwrap();
+    let outside = dir.join("outside-secret.bin");
+    fs::write(&outside, vec![8u8; 128 * 1024]).unwrap();
+    symlink(&outside, folder.join("outside-link")).unwrap();
+    let expected = fs::metadata(&model).unwrap().blocks() * 512
+        + fs::metadata(&folder).unwrap().blocks() * 512
+        + fs::symlink_metadata(folder.join("outside-link"))
+            .unwrap()
+            .blocks()
+            * 512;
+    let id = "filesystem.test.total";
+    fs::write(dir.join("fixture.json"), json!({"inventory":{"hostname":"fixture","system":[],"metrics":[{"id":id,"label":format!("{} capacity",mount.display()),"unit":"bytes","group":"storage","source":"Synthetic filesystem"},{"id":"filesystem.offline.total","label":"/offline capacity","unit":"bytes","group":"storage","source":"Synthetic filesystem"}],"warnings":[],"synthetic":true},"samples":[{"timestamp_ms":2_000_000_000_000i64,"values":{id:1073741824,"filesystem.offline.total":null}}],"now_ms":2_000_000_000_000i64}).to_string()).unwrap();
+    fs::remove_dir_all(dir.join("data")).unwrap();
+    let server = Server::start(dir);
+    let request = json!({"metric_id":id}).to_string();
+    assert_eq!(
+        server
+            .request("POST", "/api/v1/storage/analyze", "", &request)
+            .0,
+        403
+    );
+    assert_eq!(
+        server
+            .request(
+                "POST",
+                "/api/v1/storage/analyze",
+                &server.csrf_headers(),
+                &json!({"metric_id":"filesystem.unknown.total"}).to_string()
+            )
+            .0,
+        400
+    );
+    assert_eq!(
+        server
+            .request(
+                "POST",
+                "/api/v1/storage/analyze",
+                &server.csrf_headers(),
+                &json!({"metric_id":id,"path":"/"}).to_string()
+            )
+            .0,
+        400
+    );
+    assert_eq!(
+        server
+            .request(
+                "POST",
+                "/api/v1/storage/analyze",
+                &server.csrf_headers(),
+                &json!({"metric_id":"filesystem.offline.total"}).to_string()
+            )
+            .0,
+        409
+    );
+    let (status, result) = server.request(
+        "POST",
+        "/api/v1/storage/analyze",
+        &server.csrf_headers(),
+        &request,
+    );
+    assert_eq!(status, 200, "{result}");
+    assert_eq!(result["complete"], true, "{result}");
+    assert_eq!(
+        result["entries"],
+        json!([{"name":"Models & weights","bytes":expected}])
+    );
+    assert_eq!(
+        result["total_bytes"].as_u64().unwrap(),
+        expected + fs::metadata(&mount).unwrap().blocks() * 512
+    );
+    assert_eq!(fs::read(&model).unwrap(), vec![7u8; 16 * 1024]);
+    assert_eq!(
+        fs::read_link(folder.join("outside-link"))
+            .unwrap()
+            .as_os_str()
+            .as_bytes(),
+        outside.as_os_str().as_bytes()
+    );
+    // Unreadable directories must not turn a partial total into a complete one.
+    use std::os::unix::fs::PermissionsExt;
+    let private = mount.join("private");
+    fs::create_dir(&private).unwrap();
+    fs::write(private.join("hidden.bin"), vec![9u8; 32 * 1024]).unwrap();
+    fs::set_permissions(&private, fs::Permissions::from_mode(0o000)).unwrap();
+    let unreadable = fs::read_dir(&private).is_err();
+    let (partial_status, partial) = server.request(
+        "POST",
+        "/api/v1/storage/analyze",
+        &server.csrf_headers(),
+        &request,
+    );
+    fs::set_permissions(&private, fs::Permissions::from_mode(0o700)).unwrap();
+    assert_eq!(partial_status, 200);
+    if unreadable {
+        assert_eq!(partial["complete"], false);
+        assert!(partial["message"].as_str().unwrap().contains("partial"));
+    }
+    // A completed scan releases its lease; no persistent worker is required.
+    assert_eq!(
+        server
+            .request(
+                "POST",
+                "/api/v1/storage/analyze",
+                &server.csrf_headers(),
+                &request
+            )
+            .0,
+        200
+    );
+}

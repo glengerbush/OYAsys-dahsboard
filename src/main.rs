@@ -2,6 +2,7 @@ mod app;
 mod assets;
 mod history;
 mod model;
+mod storage_scan;
 mod telemetry;
 mod update;
 

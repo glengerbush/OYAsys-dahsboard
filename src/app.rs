@@ -16,7 +16,7 @@ use std::{
     net::SocketAddr,
     os::fd::AsRawFd,
     path::{Path, PathBuf},
-    sync::{mpsc, Arc, Mutex},
+    sync::{atomic::AtomicBool, mpsc, Arc, Mutex},
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -77,6 +77,7 @@ struct Shared {
     commands: mpsc::SyncSender<Command>,
     queries: mpsc::SyncSender<Query>,
     updater: crate::update::Updater,
+    storage_scan_busy: Arc<AtomicBool>,
 }
 enum Command {
     Refresh(oneshot::Sender<Result<Inventory, String>>),
@@ -381,6 +382,7 @@ pub fn run() -> Result<(), String> {
         commands: command_tx,
         queries: query_tx,
         updater: crate::update::Updater::from_environment(),
+        storage_scan_busy: Arc::new(AtomicBool::new(false)),
     });
     let collector_state = shared.clone();
     let collector_path = db_path.clone();
@@ -821,6 +823,88 @@ async fn handle(mut req: Request<Incoming>, shared: Arc<Shared>) -> Reply {
             }
             _ => return asset(path, &req),
         }
+    }
+    if method == hyper::Method::POST && path == "/api/v1/storage/analyze" {
+        if req.headers().get("origin").and_then(|v| v.to_str().ok()) != Some(&shared.origin)
+            || req
+                .headers()
+                .get("x-oyasys-csrf")
+                .and_then(|v| v.to_str().ok())
+                != Some(&shared.csrf)
+        {
+            return error(403, "Folder analysis requires same-origin CSRF protection");
+        }
+        if req
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.split(';').next())
+            != Some("application/json")
+        {
+            return error(415, "Folder analysis requires application/json");
+        }
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct AnalyzeRequest {
+            metric_id: String,
+        }
+        let body = match bounded_body(&mut req, 4096).await {
+            Ok(body) => body,
+            Err((code, message)) => return error(code, message),
+        };
+        let request: AnalyzeRequest = match serde_json::from_slice(&body) {
+            Ok(value) => value,
+            Err(_) => return error(400, "Choose a discovered filesystem"),
+        };
+        let mount = {
+            let live = shared.live.lock().unwrap();
+            let metric = live
+                .inventory
+                .metrics
+                .iter()
+                .find(|m| {
+                    m.id == request.metric_id
+                        && m.group == "storage"
+                        && m.id.starts_with("filesystem.")
+                        && m.id.ends_with(".total")
+                })
+                .and_then(|m| m.label.strip_suffix(" capacity"))
+                .map(PathBuf::from);
+            if metric.is_some()
+                && !live
+                    .snapshot
+                    .as_ref()
+                    .and_then(|s| s.values.get(&request.metric_id))
+                    .and_then(|v| *v)
+                    .is_some_and(|v| v.is_finite() && v > 0.0)
+            {
+                return error(409, "Filesystem is currently unavailable");
+            }
+            metric
+        };
+        let Some(mount) = mount else {
+            return error(400, "Choose a discovered filesystem");
+        };
+        let Some(lease) = crate::storage_scan::Lease::acquire(&shared.storage_scan_busy) else {
+            return error(409, "A folder analysis is already running");
+        };
+        let (tx, rx) = oneshot::channel();
+        if let Err(error) = thread::Builder::new()
+            .name("oyasys-storage-scan".into())
+            .stack_size(128 * 1024)
+            .spawn(move || {
+                let result = crate::storage_scan::analyze(&mount, || tx.is_closed());
+                drop(lease);
+                let _ = tx.send(result);
+            })
+        {
+            return self::error(503, &format!("Cannot start folder analysis: {error}"));
+        }
+        return match tokio::time::timeout(Duration::from_secs(12), rx).await {
+            Ok(Ok(Ok(result))) => response(200, &result),
+            Ok(Ok(Err(message))) => error(503, &message),
+            _ => error(503, "Folder analysis timed out"),
+        };
     }
     if method == hyper::Method::POST
         && matches!(

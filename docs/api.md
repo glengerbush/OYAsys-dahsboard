@@ -37,3 +37,9 @@ Test interface: executable `serve --bind 127.0.0.1:PORT --origin http://127.0.0.
 `oyasys discover` prints inventory JSON with an additional `readings` map containing one current sample. Missing/unsupported readings are null; rate readings require a second sample and may initially be null. The command performs read-only discovery and does not create a database.
 
 The executable holds a nonblocking advisory lock on `oyasys.lock` inside an available data directory. A second instance using that directory exits before serving. If storage is unavailable, live monitoring remains available; recovery must acquire the same lock before opening history. Keep the lock file in place during operation.
+
+## Folder analysis
+
+`POST /storage/analyze` takes `{ "metric_id": "filesystem.<id>.total" }`. Requires exact configured Origin, `X-OYAsys-CSRF`, and JSON (4096-byte maximum); unknown fields are rejected. The mount is resolved from discovered filesystem inventory, never a caller-supplied path. An unavailable filesystem or concurrent scan returns 409, invalid selection 400, and launch/worker failure 503.
+
+Success returns `{ entries: [{name,bytes}], total_bytes: number|null, files_bytes: number|null, other_folders_bytes: number, complete: boolean, message: string }`. Entries are the largest 12 immediate folders by allocated bytes. Other folders are aggregated; files_bytes includes direct files and root directory metadata. A missing completed root total is null. Partial results return 200 with `complete=false`; these must not be displayed as a complete accounting of used disk space. Results are not persisted. See [scan limits and permissions](architecture.md#filesystem-capacity-and-folder-analysis).
