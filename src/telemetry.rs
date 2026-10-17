@@ -2,7 +2,7 @@
 //! reuses open kernel files and buffers and launches no child processes.
 mod nvml;
 
-use crate::model::{Availability, Inventory, Metric, Spec};
+use crate::model::{Availability, Drive, Inventory, Metric, Spec};
 use std::{
     collections::{BTreeMap, BTreeSet},
     ffi::CString,
@@ -602,6 +602,7 @@ impl Telemetry {
         self.inventory.hostname =
             read_text("/proc/sys/kernel/hostname").unwrap_or_else(|| "Linux server".into());
         self.inventory.system.clear();
+        self.inventory.drives.clear();
         for (label, path) in [
             ("Kernel", "/proc/sys/kernel/osrelease"),
             ("Board", "/sys/class/dmi/id/board_name"),
@@ -797,7 +798,11 @@ impl Telemetry {
     }
 
     fn discover_disks(&mut self) {
-        for entry in entries("/sys/class/block") {
+        self.discover_disks_at(Path::new("/sys/class/block"));
+    }
+
+    fn discover_disks_at(&mut self, root: &Path) {
+        for entry in entries(root) {
             let name = entry.file_name().unwrap_or_default().to_string_lossy();
             if entry.join("partition").exists()
                 || name.starts_with("loop")
@@ -843,10 +848,20 @@ impl Telemetry {
             {
                 continue;
             }
-            if let Some(size) = read_text(entry.join("size"))
+            let capacity = read_text(entry.join("size"))
                 .and_then(|v| v.parse::<u64>().ok())
-                .and_then(|v| v.checked_mul(512))
-            {
+                .and_then(|v| v.checked_mul(512));
+            // Whole hardware devices expose a device link; virtual dm/md layers
+            // remain I/O sources, but are not counted as additional drives.
+            if entry.join("device").exists() {
+                self.inventory.drives.push(Drive {
+                    id: prefix.clone(),
+                    name: name.to_string(),
+                    model: model.clone(),
+                    capacity_bytes: capacity,
+                });
+            }
+            if let Some(size) = capacity {
                 self.inventory.system.push(Spec {
                     label: format!("Disk {name}"),
                     value: format!("{model} · {size} bytes · {id}"),
@@ -1197,4 +1212,56 @@ fn unescape_mount(value: &str) -> String {
         .replace("\\011", "\t")
         .replace("\\012", "\n")
         .replace("\\134", "\\")
+}
+
+#[cfg(test)]
+mod disk_tests {
+    use super::*;
+
+    #[test]
+    fn whole_drives_are_discovered_without_mounts_and_exclude_partitions_and_virtual_layers() {
+        let root = std::env::temp_dir().join(format!("oyasys-disks-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        for (name, model, sectors) in [
+            ("nvme0n1", "MSI M482 2TB", "3906250000"),
+            ("nvme1n1", "CT1000T700SSD3", "1953125000"),
+            ("nvme1n1p1", "Partition", "131072"),
+        ] {
+            let path = root.join(name);
+            fs::create_dir_all(path.join("device")).unwrap();
+            fs::write(path.join("device/model"), model).unwrap();
+            fs::write(path.join("device/serial"), name).unwrap();
+            fs::write(path.join("size"), sectors).unwrap();
+            fs::write(path.join("stat"), "0 0 0 0 0 0 0 0 0 0 0").unwrap();
+        }
+        fs::write(root.join("nvme1n1p1/partition"), "1").unwrap();
+        fs::create_dir_all(root.join("dm-0/dm")).unwrap();
+        fs::write(root.join("dm-0/dm/uuid"), "virtual-layer").unwrap();
+        fs::write(root.join("dm-0/size"), "1953125000").unwrap();
+        let mut telemetry = Telemetry::new();
+        telemetry.inventory = Inventory::default();
+        telemetry.disks.clear();
+        telemetry.source_keys.clear();
+        telemetry.discover_disks_at(&root);
+        let drives = &telemetry.inventory.drives;
+        assert_eq!(drives.len(), 2);
+        assert_eq!(drives[0].name, "nvme0n1");
+        assert_eq!(drives[0].model, "MSI M482 2TB");
+        assert_eq!(drives[0].capacity_bytes, Some(2_000_000_000_000));
+        assert_eq!(drives[1].name, "nvme1n1");
+        assert_eq!(drives[1].capacity_bytes, Some(1_000_000_000_000));
+        for drive in drives {
+            assert!(telemetry
+                .inventory
+                .metrics
+                .iter()
+                .any(|m| m.id == format!("{}.read", drive.id)));
+        }
+        // A missing capacity must stay unknown, never become an empty drive.
+        fs::write(root.join("nvme1n1/size"), "unavailable").unwrap();
+        telemetry.inventory.drives.clear();
+        telemetry.discover_disks_at(&root);
+        assert_eq!(telemetry.inventory.drives[1].capacity_bytes, None);
+        fs::remove_dir_all(root).unwrap();
+    }
 }

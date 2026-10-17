@@ -4,6 +4,8 @@ Telemetry times are Unix milliseconds; software-update `checked_at` is Unix seco
 
 `GET /state` returns `{ inventory, snapshot, settings, csrf_token, storage, now_ms }`.
 `inventory`: `{ hostname, system: [{label,value}], metrics: [{id,label,unit,group,source}], warnings: [string], synthetic: boolean, availability?: {metric_id:{status,reason?:string}} }`. Current availability is `available`, `warming_up`, `unsupported`, `permission_denied`, `lost`, `unavailable`, or `invalid`; reasons expose capability/read failures. It is transient, excluded from persisted catalog identity, and absent in older fixtures. Numeric zero remains valid regardless of display status.
+`inventory.drives` optionally lists cached whole physical devices as `[{id,name,model,capacity_bytes:number|null}]`; `id` is the prefix for that device’s `.read` and `.write` metrics. An omitted list means no physical devices were discovered. Capacity is hardware size, not filesystem free space.
+
 Groups: `gpu`, `cpu`, `memory`, `thermal`, `fan`, `storage`, `network`, `system`. Units: `°C`, `RPM`, `%`, `bytes`, `bytes/s`, `W`, `MHz`, `s`.
 Metric IDs identify devices, never enumeration order. A P100 temperature metric has group gpu and ID ending `.temperature`; its source contains P100's identity. Other GPU IDs end `.utilization`, `.memory_used`, `.memory_total`, `.power`, `.clock`.
 `snapshot`: null before first collection, else `{ sequence, timestamp_ms, values: { metric_id: number|null }, persisted: boolean }`. Null means unavailable, never zero. Numeric metrics are display gauges; exact raw counters stay internal to telemetry.

@@ -7,6 +7,7 @@ I made this to monitor my P100 GPU and gather some historical temps during norma
 ![OYAsys dashboard showing P100 temperature and cooling-fan history with synthetic demonstration data](docs/images/dashboard.png)
 
 - CPU, memory, swap, temperatures, fans, filesystem capacity, disk/network rates, uptime, and available hardware specifications.
+- A physical-drive overview includes unmounted drives, with model, capacity, and existing read/write rates.
 - Storage bars show used, available, and reserved space. **Analyze folders** lists the largest accessible folders on demand, with no background scanning.
 - Optional NVIDIA telemetry through the existing NVML driver library.
 - Sampling defaults to **10 seconds**; full-detail retention to **30 days**. Both are editable in Settings, alongside the verified P100 fan mapping.

@@ -32,7 +32,7 @@ async function server(t, catalog = metrics, cadence = 10000, options = {}) {
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
   const samples = Array.from({length:120}, (_,index)=>({timestamp_ms:now-(119-index)*cadence,values:{'gpu.p100.temperature':index===60?81:38+index%10,'gpu.p100.utilization':index%50,'gpu.p100.power':31+index%10,'fan.fixture.rpm':1400+index%20*10,'fan.missing.rpm':null,'cpu.utilization':0,'memory.used':8*1024**3,'storage.used':128*1024**3,...options.values}}));
-  await writeFile(join(directory,'fixture.json'),JSON.stringify({inventory:{hostname:'minisforum-fixture',system:[{label:'System',value:'Synthetic Minisforum fixture'},{label:'Memory',value:'32 GiB'}],metrics:catalog,warnings:[],synthetic:true,...(options.availability?{availability:options.availability}:{})},samples,now_ms:now}));
+  await writeFile(join(directory,'fixture.json'),JSON.stringify({inventory:{hostname:'minisforum-fixture',system:[{label:'System',value:'Synthetic Minisforum fixture'},{label:'Memory',value:'32 GiB'}],metrics:catalog,warnings:[],synthetic:true,...(options.drives?{drives:options.drives}:{}),...(options.availability?{availability:options.availability}:{})},samples,now_ms:now}));
   await writeFile(join(directory,'clock'),String(now));
   if(options.blockStorage)await writeFile(join(directory,'data'),'Deliberately unavailable storage for browser failure test');
   const updater=join(directory,'updater');
@@ -366,4 +366,21 @@ test('settings explains an update lock started by another client', {timeout:3000
   await page.getByRole('button',{name:'Save settings',exact:true}).click();const reason=(await (await rejected).json()).error;
   await page.getByText(`Settings were not saved: ${reason}`,{exact:true}).waitFor();assert.match(reason,/update|recovery/i);
   assert.equal((await (await fetch(`${url}/api/v1/state`)).json()).settings.sampling_seconds,10);
+});
+
+
+test('both physical NVMes remain visible with one filesystem and a full chart selection', {timeout:30000}, async t=>{
+  const catalog=Array.from({length:65},(_,i)=>({id:`cpu.core${i}`,label:`Core ${i}`,unit:'%',group:'cpu',source:'Synthetic CPU'}));
+  const values=Object.fromEntries(catalog.map(m=>[m.id,0]));
+  const drives=[{id:'disk.msi',name:'nvme0n1',model:'MSI M482 2TB',capacity_bytes:2_000_000_000_000},{id:'disk.crucial',name:'nvme1n1',model:'CT1000T700SSD3',capacity_bytes:1_000_000_000_000}];
+  for(const drive of drives)for(const suffix of ['read','write']){const id=`${drive.id}.${suffix}`;catalog.push({id,label:`${drive.name} ${suffix}`,unit:'bytes/s',group:'storage',source:drive.model});values[id]=suffix==='read'?0:2048;}
+  for(const [suffix,value] of [['total',1024**4],['used',400*1024**3],['available',600*1024**3]]){const id=`filesystem.root.${suffix}`;catalog.push({id,label:`/ ${suffix==='total'?'capacity':suffix}`,unit:'bytes',group:'storage',source:'Synthetic filesystem'});values[id]=value;}
+  const {url}=await server(t,catalog,10000,{values,drives});const instance=await browser(t);const page=await instance.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.goto(url);await page.getByRole('heading',{name:'Physical drives · 2',exact:true}).waitFor();
+  assert.equal(await page.locator('.drive-card').count(),2);assert.equal(await page.locator('.filesystem-card').count(),1);
+  const first=page.locator('.drive-card').filter({hasText:'nvme0n1'});assert.match(await first.innerText(),/MSI M482 2TB/);assert.match(await first.innerText(),/1.8 TiB/);assert.match(await first.innerText(),/0 B\/s/);assert.match(await first.innerText(),/2 KiB\/s/);
+  const second=page.locator('.drive-card').filter({hasText:'nvme1n1'});assert.match(await second.innerText(),/CT1000T700SSD3/);assert.match(await second.innerText(),/931.3 GiB/);
+  assert.equal(await first.getByRole('button',{name:'Analyze folders'}).count(),0);assert.doesNotMatch(await first.innerText(),/available|free|used/i);
+  await page.getByText(/unmounted drives have no usage reading/).waitFor();
+  await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.deepEqual(errors,[]);
 });

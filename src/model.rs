@@ -14,6 +14,8 @@ pub struct Metric {
 pub struct Inventory {
     pub hostname: String,
     pub system: Vec<Spec>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub drives: Vec<Drive>,
     pub metrics: Vec<Metric>,
     pub warnings: Vec<String>,
     #[serde(default)]
@@ -21,6 +23,15 @@ pub struct Inventory {
     /// Current capability/read status; never part of persistent catalog identity.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub availability: BTreeMap<String, Availability>,
+}
+
+/// Cached whole-device inventory, independent of mounted filesystem usage.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Drive {
+    pub id: String,
+    pub name: String,
+    pub model: String,
+    pub capacity_bytes: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

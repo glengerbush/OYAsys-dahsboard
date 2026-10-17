@@ -4,7 +4,7 @@
 /** @typedef {{id:string,label:string,unit:string,group:string,source:string}} Metric */
 /** @typedef {{revision:number,sampling_seconds:number,retention_days:number,p100_fan_id:string|null}} Settings */
 /** @typedef {{sequence:number,timestamp_ms:number,values:Record<string,number|null>,persisted:boolean}} Snapshot */
-/** @typedef {{inventory:{hostname:string,system:{label:string,value:string}[],metrics:Metric[],warnings:string[],synthetic:boolean,availability?:Record<string,{status:string,reason?:string}>},snapshot:Snapshot|null,settings:Settings,csrf_token:string,storage:{available:boolean,error:string|null,bytes:number,samples:number,oldest_ms:number|null,newest_ms:number|null,estimated_daily_bytes:number|null},now_ms:number}} State */
+/** @typedef {{inventory:{hostname:string,system:{label:string,value:string}[],drives?:{id:string,name:string,model:string,capacity_bytes:number|null}[],metrics:Metric[],warnings:string[],synthetic:boolean,availability?:Record<string,{status:string,reason?:string}>},snapshot:Snapshot|null,settings:Settings,csrf_token:string,storage:{available:boolean,error:string|null,bytes:number,samples:number,oldest_ms:number|null,newest_ms:number|null,estimated_daily_bytes:number|null},now_ms:number}} State */
 /** @typedef {[number,number|null]} Point */
 /** @typedef {{title:string,metrics:Metric[],element:HTMLElement,plotElement:HTMLElement,current:HTMLElement,legend:HTMLElement,summary:HTMLElement,note:HTMLElement,empty:HTMLElement,plot:any}} Panel */
 /** @type {State|null} */
@@ -133,7 +133,24 @@ function rebuild(){
   for(const id of ['system-panels','sensor-panels','io-panels']){if(!el(id).children.length)el(id).append(node('p','empty-section','No readings available in this group. See Sources & availability below.'));}
   el('source-count').textContent=`${metrics.length} sensors · ${selectedIds().length} charted`;
   el('p100-charts').hidden=el('p100-charts').children.length===0;
-  buildFilesystemCapacity();updateStaticDetails();renderSnapshot();
+  buildDriveOverview();buildFilesystemCapacity();updateStaticDetails();renderSnapshot();
+}
+function buildDriveOverview(){
+  const parent=el('drive-overview');parent.replaceChildren();const drives=state?.inventory.drives||[];parent.hidden=drives.length===0;
+  if(!drives.length)return;
+  parent.append(node('h3','drive-heading',`Physical drives · ${drives.length}`));
+  const grid=node('div','drive-grid');
+  for(const drive of drives){
+    const card=node('article','drive-card');const heading=node('div','drive-title');
+    heading.append(node('h4','',drive.name),node('strong','',format(drive.capacity_bytes,'bytes')));
+    card.append(heading,node('p','drive-model',drive.model));
+    const activity=node('dl','drive-activity');
+    for(const [suffix,label] of [['read','Read'],['write','Write']]){
+      const item=node('div');const value=node('dd','','Unavailable');bindReading(`${drive.id}.${suffix}`,value);item.append(node('dt','',label),value);activity.append(item);
+    }
+    card.append(activity);grid.append(card);
+  }
+  parent.append(grid,node('p','drive-note','Physical capacity includes all partitions. Used/free space is shown per mounted filesystem below; unmounted drives have no usage reading.'));
 }
 function buildFilesystemCapacity(){
   const parent=el('filesystem-capacity');parent.replaceChildren();filesystemViews=[];
@@ -303,7 +320,7 @@ async function refresh(){
     if(updatesFailure)historyError=updatesFailure;
     else if(historyError.startsWith('History updates unavailable:'))historyError='';
     state=fresh;
-    const key=JSON.stringify([fresh.inventory.metrics,fresh.settings.p100_fan_id]);const changed=key!==catalogKey;
+    const key=JSON.stringify([fresh.inventory.metrics,fresh.inventory.drives,fresh.settings.p100_fan_id]);const changed=key!==catalogKey;
     if(changed){catalogKey=key;rebuild();}
     const settingsChanged=!!previous&&previous.settings.revision!==fresh.settings.revision;
     if(settingsChanged&&!el('settings-drawer').hidden){staleSettings=true;el('settings-message').textContent='Settings changed in another session. Reopen Settings to load the current values.';}

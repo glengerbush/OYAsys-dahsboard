@@ -38,6 +38,8 @@ Local tests cannot verify NVIDIA driver ABI behavior on the user's P100, motherb
 
 ## Filesystem capacity and folder analysis
 
+The physical-drive overview reuses cached whole-device discovery from sysfs, including unmounted drives. Partitions and virtual device-mapper/RAID layers do not become extra physical-drive cards; their existing I/O metrics remain available. Capacities are read once per discovery and are not added to sampled history. Unknown capacity stays unavailable.
+
 Capacity bars reuse the existing filesystem sample: used bytes, bytes available to unprivileged processes, and their difference from total capacity as reserved space. They add no hardware reads or polling.
 
 An explicit Analyze folders request starts one temporary worker and GNU `/usr/bin/du`, running as the existing service account at nice level 19. It measures allocated space, does not follow symlinks or cross filesystem device boundaries, and returns the largest 12 immediate folders, an aggregate for other folders, and files/directory metadata at the mount root. Hard links count once; shared extents, snapshots, and filesystem metadata can differ from filesystem usage.
